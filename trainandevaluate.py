@@ -15,6 +15,7 @@ import tensorflow as tf
 from sklearn.preprocessing import scale
 import math
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 
 
 
@@ -29,7 +30,7 @@ class AutoEncoder:
         self.max_error = -1
         self.cost_summary = None
         self.train = genfromtxt(sys.argv[1], delimiter=',')
-        self.test = genfromtxt('D:\\Repos\\Tesis\\Tesis\\pcap\\src\\main\\resources\\evaluate.csv', delimiter=',')
+        self.test = genfromtxt('evaluate.csv', delimiter=',')
 
         self.train = preprocessing.scale(self.train)
         self.test = preprocessing.scale(self.test)
@@ -37,30 +38,12 @@ class AutoEncoder:
         self.anomalies = 0
         self.non_anomalies = 0
 
-        num_hidden_1 = 8  # 1st layer num features
-        num_hidden_2 = 6  # 2nd layer num features (the latent dim)
-        num_hidden_3 = 4  # 2nd layer num features (the latent dim)
-        self.num_input = 10  # MNIST data input (img shape: 28*28)
+        self.non_anomalies_indexes = []
+
         self.learning_rate = float(sys.argv[2])
         print("Learning rate: ", self.learning_rate)
-        self.placeholder = tf.placeholder("float", [None, self.num_input], name="Input")
-        self.weights = {
-            'encoder_h1': tf.Variable(tf.random_normal([self.num_input, num_hidden_1])),
-            'encoder_h2': tf.Variable(tf.random_normal([num_hidden_1, num_hidden_2])),
-            'encoder_h3': tf.Variable(tf.random_normal([num_hidden_2, num_hidden_3])),
-            'decoder_h1': tf.Variable(tf.random_normal([num_hidden_3, num_hidden_2])),
-            'decoder_h2': tf.Variable(tf.random_normal([num_hidden_2, num_hidden_1])),
-            'decoder_h3': tf.Variable(tf.random_normal([num_hidden_1, self.num_input])),
-        }
-        self.biases = {
-            'encoder_b1': tf.Variable(tf.random_normal([num_hidden_1])),
-            'encoder_b2': tf.Variable(tf.random_normal([num_hidden_2])),
-            'encoder_b3': tf.Variable(tf.random_normal([num_hidden_3])),
-            'decoder_b1': tf.Variable(tf.random_normal([num_hidden_2])),
-            'decoder_b2': tf.Variable(tf.random_normal([num_hidden_1])),
-            'decoder_b3': tf.Variable(tf.random_normal([self.num_input])),
-        }
-
+        
+        self.num_input = 10  
         number_of_neurons_first_layer = 6
         number_of_neurons_second_layer = 2
 
@@ -78,12 +61,12 @@ class AutoEncoder:
         Wd2 = tf.Variable(tf.random_normal([number_of_neurons_first_layer, self.num_input], dtype=tf.float32))
         bd2 = tf.Variable(tf.zeros([self.num_input]))
 
-        self.new_placeholder = tf.placeholder(dtype=tf.float32, shape=[None, self.num_input])
+        self.new_placeholder = tf.placeholder(dtype=tf.float32, shape=[None, self.num_input],name='model')
 
         encoding = tf.nn.tanh(tf.add(tf.matmul(self.new_placeholder, We1), be1))
         encoding = tf.nn.leaky_relu(tf.add(tf.matmul(encoding, We2), be2))
         decoding = tf.nn.tanh(tf.add(tf.matmul(encoding, Wd1), bd1))
-        self.decoded = tf.nn.leaky_relu(tf.add(tf.matmul(decoding, Wd2), bd2),name='model')
+        self.decoded = tf.nn.leaky_relu(tf.add(tf.matmul(decoding, Wd2), bd2))
 
         self.loss = tf.reduce_mean(tf.square(tf.subtract(self.new_placeholder, self.decoded)))
         self.train_step = tf.train.RMSPropOptimizer(self.learning_rate).minimize(self.loss)
@@ -96,8 +79,6 @@ class AutoEncoder:
     def fit(self):
 
         tf.set_random_seed(1)
-
-        saver = tf.train.Saver()
 
         sess = tf.Session()
         sess.run(tf.global_variables_initializer())
@@ -112,19 +93,18 @@ class AutoEncoder:
             lt = sess.run(self.loss, feed_dict={self.new_placeholder: self.train})
             loss_train.append(lt)
             if i % 50 == 0 or i == num_steps - 1:
-                print('iteration {0}: loss train = {1:.4f}'.format(i, lt))
-
-        save_path = saver.save(sess, '/weights/model.ckpt')
-        print("Model saved in path: %s" % save_path)
+                print('iteration {0}: loss train = {1:.5f}'.format(i, lt))
 
         plt.figure()
         plt.clf()
         plt.cla()
         plt.semilogy(loss_train)
-        plt.ylabel('loss')
+        plt.ylabel('Loss')
         plt.xlabel('Iterations')
-        plt.legend(['train'], loc='upper right')
-        plt.show()
+        plt.legend(['Training'], loc='upper right')
+        plt.savefig('plots/lossvsiteration.png')
+        plt.clf()
+        plt.cla()
 
         train_output = sess.run(self.decoded, feed_dict={self.new_placeholder: self.train})
         test_output = sess.run(self.decoded, feed_dict={self.new_placeholder: self.test})
@@ -141,15 +121,17 @@ class AutoEncoder:
                 self.max_error = error
         print("Max Error", self.max_error)
 
-        self.generate_scatter_plot(self.train, train_output)
-        self.generate_scatter_plot(self.test, test_output)
+        self.generate_scatter_plot(self.train, train_output,'train')
+        self.generate_scatter_plot(self.test, test_output,'evaluate')
 
         print("Anomalies: ", self.anomalies,
               (self.anomalies /(self.anomalies+self.non_anomalies))*100," %")
         print("Non Anomalies: ", self.non_anomalies,
               (self.non_anomalies /(self.anomalies+self.non_anomalies))*100," %")
+        print("NonAnomalies Indexes: ",self.non_anomalies_indexes)
 
-    def generate_scatter_plot(self, input, output):
+
+    def generate_scatter_plot(self, input, output, type):
         self.non_anomalies = 0
         self.anomalies = 0
         for x in range(0, output.shape[0] - 1):
@@ -159,15 +141,23 @@ class AutoEncoder:
             error = math.sqrt(sum / 10)
             print("Plotting point ", x, " of ", output.shape[0] - 1)
             if error <= self.max_error:
-                #plt.plot(x, error, 'o', color='green')
+                plt.plot(x, error, 'o', color='green')
                 self.non_anomalies = self.non_anomalies + 1
+                self.non_anomalies_indexes.append(x)
             else:
-                #plt.plot(x, error, 'o', color='red')
+                plt.plot(x, error, 'o', color='red')
                 self.anomalies = self.anomalies + 1
-        plt.show()
 
 
-
+        plt.ylabel('Prediction MSE')
+        plt.xlabel('Data Entry')
+        anomaly = mpatches.Patch(color='red', label='Anomaly')
+        non_anomaly = mpatches.Patch(color='green', label='Non Anomaly')
+        plt.legend(handles=[anomaly,non_anomaly], loc='upper right')
+        plt.savefig('plots/'+type+'.png')
+        plt.clf()
+        plt.cla()
+       
 
 if __name__ == '__main__':
     seedy(2)
