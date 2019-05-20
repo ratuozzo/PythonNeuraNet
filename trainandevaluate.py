@@ -29,18 +29,18 @@ class AutoEncoder:
 
         self.max_error = -1
         self.cost_summary = None
-        self.train = genfromtxt(sys.argv[1], delimiter=',')
-        self.test = genfromtxt('evaluate.csv', delimiter=',')
+        self.trainData = genfromtxt(sys.argv[1], delimiter=',')
+        self.testData = genfromtxt(sys.argv[2], delimiter=',')
 
-        self.train = preprocessing.scale(self.train)
-        self.test = preprocessing.scale(self.test)
+        self.train = preprocessing.scale(self.trainData)
+        self.test = preprocessing.scale(self.testData)
 
         self.anomalies = 0
         self.non_anomalies = 0
 
         self.non_anomalies_indexes = []
 
-        self.learning_rate = float(sys.argv[2])
+        self.learning_rate = float(sys.argv[3])
         print("Learning rate: ", self.learning_rate)
         
         self.num_input = 10  
@@ -71,7 +71,7 @@ class AutoEncoder:
         self.loss = tf.reduce_mean(tf.square(tf.subtract(self.new_placeholder, self.decoded)))
         self.train_step = tf.train.RMSPropOptimizer(self.learning_rate).minimize(self.loss)
 
-        self.batch_size = int(sys.argv[3])
+        self.batch_size = int(sys.argv[4])
 
     def get_batch(self, data, i, size):
         return np.array(data[i:i+size])
@@ -84,7 +84,7 @@ class AutoEncoder:
         sess.run(tf.global_variables_initializer())
         loss_train = []
 
-        num_steps = int(sys.argv[4])
+        num_steps = int(sys.argv[5])
 
         for i in range(1, num_steps + 1):
             for j in range(np.shape(self.train)[0] // self.batch_size):
@@ -143,7 +143,7 @@ class AutoEncoder:
             if error <= self.max_error:
                 plt.plot(x, error, 'o', color='green')
                 self.non_anomalies = self.non_anomalies + 1
-                self.non_anomalies_indexes.append(x)
+                self.non_anomalies_indexes.append(self.testData[x])
             else:
                 plt.plot(x, error, 'o', color='red')
                 self.anomalies = self.anomalies + 1
