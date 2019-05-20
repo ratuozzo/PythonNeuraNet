@@ -34,11 +34,13 @@ class AutoEncoder:
 
         self.train = preprocessing.scale(self.trainData)
         self.test = preprocessing.scale(self.testData)
+        #self.train = self.trainData
+        #self.test = self.testData
 
         self.anomalies = 0
         self.non_anomalies = 0
 
-        self.non_anomalies_indexes = []
+        self.non_anomalies_data = []
 
         self.learning_rate = float(sys.argv[3])
         print("Learning rate: ", self.learning_rate)
@@ -93,7 +95,7 @@ class AutoEncoder:
             lt = sess.run(self.loss, feed_dict={self.new_placeholder: self.train})
             loss_train.append(lt)
             if i % 50 == 0 or i == num_steps - 1:
-                print('iteration {0}: loss train = {1:.5f}'.format(i, lt))
+                print('Iteration {0}: loss train = {1:.5f}'.format(i, lt))
 
         plt.figure()
         plt.clf()
@@ -110,7 +112,6 @@ class AutoEncoder:
         test_output = sess.run(self.decoded, feed_dict={self.new_placeholder: self.test})
 
         rows = train_output.shape[0]
-        cols = train_output.shape[1]
 
         for x in range(0, rows - 1):
             sum = 0
@@ -128,7 +129,14 @@ class AutoEncoder:
               (self.anomalies /(self.anomalies+self.non_anomalies))*100," %")
         print("Non Anomalies: ", self.non_anomalies,
               (self.non_anomalies /(self.anomalies+self.non_anomalies))*100," %")
-        print("NonAnomalies Indexes: ",self.non_anomalies_indexes)
+
+        print("Non Anomalies found:")
+        float_formatter = lambda x: "%.3f" % x
+        np.set_printoptions(formatter={'float_kind': float_formatter})
+
+        for x in range(np.shape(self.non_anomalies_data)[0]):
+            print(self.non_anomalies_data[x])
+
 
 
     def generate_scatter_plot(self, input, output, type):
@@ -139,11 +147,13 @@ class AutoEncoder:
             for y in range(0, 9):
                 sum = sum + (input[x][y] - output[x][y]) ** 2
             error = math.sqrt(sum / 10)
-            print("Plotting point ", x, " of ", output.shape[0] - 1)
+            print("Plotting point for",type,":", x, " of ", output.shape[0] - 1)
             if error <= self.max_error:
                 plt.plot(x, error, 'o', color='green')
                 self.non_anomalies = self.non_anomalies + 1
-                self.non_anomalies_indexes.append(self.testData[x])
+                if type == 'evaluate':
+                    self.non_anomalies_data.append(self.testData[x])
+
             else:
                 plt.plot(x, error, 'o', color='red')
                 self.anomalies = self.anomalies + 1
@@ -157,7 +167,6 @@ class AutoEncoder:
         plt.savefig('plots/'+type+'.png')
         plt.clf()
         plt.cla()
-       
 
 if __name__ == '__main__':
     seedy(2)
