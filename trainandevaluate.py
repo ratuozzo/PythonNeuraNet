@@ -166,7 +166,7 @@ class AutoEncoder:
         anomaly = mpatches.Patch(color='red', label='Anomaly')
         non_anomaly = mpatches.Patch(color='green', label='Non Anomaly')
         plt.legend(handles=[anomaly,non_anomaly], loc='upper right')
-        plt.savefig('plots/'+type+'.png')
+        plt.savefig(sys.argv[6]+'plots/'+type+'.png')
         plt.clf()
         plt.cla()
 
