@@ -12,7 +12,7 @@ import pandas as pd
 from time import time
 from tensorflow.python.keras.callbacks import TensorBoard
 import tensorflow as tf
-from sklearn.preprocessing import scale
+from sklearn.preprocessing import scale, normalize
 import math
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -34,6 +34,8 @@ class AutoEncoder:
 
         self.train = preprocessing.scale(self.trainData)
         self.test = preprocessing.scale(self.testData)
+        self.train = preprocessing.normalize(self.train)
+        self.test = preprocessing.normalize(self.test)
         #self.train = self.trainData
         #self.test = self.testData
 
@@ -104,7 +106,7 @@ class AutoEncoder:
         plt.ylabel('Loss')
         plt.xlabel('Iterations')
         plt.legend(['Training'], loc='upper right')
-        plt.savefig('plots/lossvsiteration.png')
+        plt.savefig(sys.argv[7]+'plots/lossvsiteration.png')
         plt.clf()
         plt.cla()
 
