@@ -106,7 +106,7 @@ class AutoEncoder:
         plt.ylabel('Loss')
         plt.xlabel('Iterations')
         plt.legend(['Training'], loc='upper right')
-        plt.savefig(sys.argv[7]+'plots/lossvsiteration.png')
+        plt.savefig(sys.argv[6]+'plots/lossvsiteration.png')
         plt.clf()
         plt.cla()
 
